@@ -1,0 +1,45 @@
+package su.erik.tabledataloader;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import su.erik.tabledataloader.dto.DataResponse;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class RawTableDataLoaderTest {
+
+    @Test
+    @DisplayName("Базовая загрузка данных: проверка лимитов, сортировки и ручного маппинга данных")
+    void testLoadData() {
+        // 1. Создаем лоадер
+        RawTableDataLoader<Map<String, Object>> loader = RawTableDataLoader.create();
+
+        // 2. Настраиваем параметры
+        loader.setLimit(10)
+              .filter("status", "ACTIVE")
+              .addOrderBy("id", "ASC");
+
+        // 3. Эмулируем получение данных (например, MyBatis mapper)
+        loader.useToGetData(param -> {
+            assertEquals(10, param.getLimit());
+            return List.of(
+                Map.of("id", 1L, "name", "Item 1", "status", "ACTIVE"),
+                Map.of("id", 2L, "name", "Item 2", "status", "ACTIVE")
+            );
+        });
+
+        // 4. Эмулируем подсчет количества
+        loader.useToCount(param -> 100L);
+
+        // 5. Выполняем загрузку
+        DataResponse<Map<String, Object>> response = loader.build();
+
+        // Проверяем результат
+        assertNotNull(response);
+        assertEquals(2, response.items().size());
+        assertEquals(100L, response.totalCount());
+        assertEquals("Item 1", response.items().getFirst().get("name"));
+    }
+}

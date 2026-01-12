@@ -1,0 +1,52 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id "com.github.ben-manes.versions" version "0.51.0"
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+group = "su.erik.tabledataloader"
+version = "1.0.0"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.puls.centralpricing:common:0.0.6'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+
+    // Spring dependencies for testing SPI
+    testImplementation 'org.springframework:spring-test:6.1.13'
+    testImplementation 'org.springframework:spring-web:6.1.13'
+    testImplementation 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+
+    // MyBatis dependencies for integration testing
+    testImplementation 'com.puls.centralpricing:mybatis-handlers:0.0.34'
+    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.3'
+    testImplementation 'com.h2database:h2:2.2.224'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(22)
+    }
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        library(MavenPublication) {
+            from components.java
+        }
+    }
+}

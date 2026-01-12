@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="su.erik.tabledataloader.TestMapper">
+
+    <sql id="searchCriteria">
+        <if test="criteria != null and !criteria.isEmpty()">
+            <trim prefix="AND (" suffix=")" suffixOverrides="AND |OR ">
+                <foreach collection="criteria" item="item">
+                    ${item.lBracket} ${item.field}
+                    <choose>
+                        <when test="item.list">
+                            ${item.op}
+                            <foreach item="val" collection="item.value" open="(" separator="," close=")">
+                                #{val}
+                            </foreach>
+                        </when>
+                        <otherwise>
+                            ${item.op} #{item.value} <if test="item.valueR != null"> AND #{item.valueR}</if>
+                        </otherwise>
+                    </choose>
+                    ${item.rBracket} ${item.getSqlSuffix()}
+                </foreach>
+            </trim>
+        </if>
+
+        <if test="keywordSearch != null and !columns.isEmpty">
+            <trim prefix="AND (" suffix=")" suffixOverrides="AND |OR ">
+                <foreach item="item" index="index" collection="columns" open="(" close=")" separator="OR">
+                    ${item.name} ${item.operator} #{item.keywordSearch}
+                </foreach>
+            </trim>
+        </if>
+    </sql>
+
+    <sql id="masterList">
+        <if test="masterListId != null and !masterListId.isEmpty">
+            AND ${key} IN
+            <foreach collection="masterListId" item="item" separator="," open="(" close=")" >
+                ${item}
+            </foreach>
+        </if>
+    </sql>
+
+    <sql id="page">
+        <if test="offset != null and limit != null">
+            OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+        </if>
+    </sql>
+
+    <sql id="order">
+        <if test="orderBy != null and !orderBy.isEmpty">
+            ORDER BY
+            <foreach collection="orderBy" item="item" separator=",">
+                ${item.sortBy} ${item.sortOrder}
+            </foreach>
+        </if>
+    </sql>
+
+    <select id="testSelect" resultType="java.util.LinkedHashMap">
+        WITH generator (n) AS (
+            SELECT 1 FROM DUAL
+            UNION ALL
+            SELECT n + 1 FROM generator WHERE n &lt; ${filters.number}
+        )
+        SELECT * FROM (
+            SELECT n as id,
+            n as "masterId",
+            'test №' || n as name,
+            CASE WHEN MOD(n, 2) = 0 THEN TRUE ELSE FALSE END as is_active
+            FROM generator
+        )
+        <where>
+            <include refid="searchCriteria"/>
+            <include refid="masterList">
+                <property name="key" value="&quot;masterId&quot;"/>
+            </include>
+        </where>
+        <include refid="order"/>
+        <include refid="page"/>
+    </select>
+
+    <select id="selectChild" resultType="java.util.LinkedHashMap">
+        WITH generator (n) AS (
+            SELECT 1 FROM DUAL
+            UNION ALL
+            SELECT n + 1 FROM generator WHERE n &lt; ${filters.number}
+        )
+        SELECT * FROM (
+            SELECT 'Child №' || n as "subName",
+            n + 1 as "masterId"
+            FROM generator
+        )
+        <where>
+            <include refid="searchCriteria"/>
+            <include refid="masterList">
+                <property name="key" value="&quot;masterId&quot;"/>
+            </include>
+        </where>
+        <include refid="order"/>
+        <include refid="page"/>
+    </select>
+
+</mapper>
