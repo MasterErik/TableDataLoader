@@ -14,26 +14,35 @@ repositories {
 }
 
 dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
     implementation 'com.puls.centralpricing:common:0.0.6'
+    implementation 'com.opencsv:opencsv:5.12.0'
+    implementation 'org.slf4j:slf4j-api:2.0.12'
+    implementation "org.codehaus.guessencoding:guessencoding:1.4"
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+    testImplementation platform('org.junit:junit-bom:6.0.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // Spring dependencies for testing SPI
-    testImplementation 'org.springframework:spring-test:6.1.13'
-    testImplementation 'org.springframework:spring-web:6.1.13'
+    testImplementation 'org.springframework:spring-test:7.0.3'
+    testImplementation 'org.springframework:spring-web:7.0.3'
     testImplementation 'jakarta.servlet:jakarta.servlet-api:6.0.0'
 
     // MyBatis dependencies for integration testing
     testImplementation 'com.puls.centralpricing:mybatis-handlers:0.0.34'
-    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
-    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.3'
+    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
+    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.1'
     testImplementation 'com.h2database:h2:2.2.224'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
 test {
     useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
 }
 
 java {

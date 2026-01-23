@@ -25,7 +25,7 @@ class TableDataLoaderParamInitTest {
         assertEquals(999L, param.getUserId(),
                 "Провайдер не сработал: userId не установлен");
 
-        // Проверяем, что БЕЗ явного вызова setLimit() и БЕЗ http-контекста, limit остается null (или дефолтным)
-        assertNull(param.getLimit(), "Limit должен быть null, пока он не задан явно или через HTTP");
+        // Проверяем, что БЕЗ явного вызова setLimit() и БЕЗ http-контекста, limit возвращает значение по умолчанию (20)
+        assertEquals(20, param.getLimit(), "Limit должен возвращать значение по умолчанию 20, пока он не задан явно");
     }
 }

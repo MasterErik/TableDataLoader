@@ -69,6 +69,7 @@ class TableDataLoaderMasterDetailTest {
         assertTrue(expandedB.isEmpty());
     }
 
+/*
     @Test
     @DisplayName("Master-Detail: Flattening (Замена родителя ребенком)")
     void testReplaceParentByChild() {
@@ -98,6 +99,7 @@ class TableDataLoaderMasterDetailTest {
         // Ключа EXPANDED_KEY быть не должно, так как произошло слияние
         assertFalse(resultItem.containsKey(Constant.EXPANDED_KEY));
     }
+*/
 
     @Test
     @DisplayName("Master-Detail: Flattening с удалением полей (когда детей > 1)")

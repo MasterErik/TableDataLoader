@@ -70,6 +70,7 @@ public class TableDataLoader<T> {
     private static final MapParamProvider MAP_PARAM_PROVIDER;
     private static final FileImporterFactory IMPORTER_FACTORY;
     private static final FileExporterFactory EXPORTER_FACTORY;
+    private static final Map<String, Class<? extends FileImporter>> IMPORTER_REGISTRY = new HashMap<>();
 //    private static final List<ArchiveIteratorFactory> ARCHIVE_FACTORIES;
 
     static {
@@ -77,6 +78,15 @@ public class TableDataLoader<T> {
         MAP_PARAM_PROVIDER = loadService(MapParamProvider.class);
         IMPORTER_FACTORY = loadService(FileImporterFactory.class);
         EXPORTER_FACTORY = loadService(FileExporterFactory.class);
+
+        // Загрузка дескрипторов импортеров
+        ServiceLoader<su.erik.tabledataloader.spi.FileImporterDescriptor> descriptors = 
+                ServiceLoader.load(su.erik.tabledataloader.spi.FileImporterDescriptor.class);
+        for (su.erik.tabledataloader.spi.FileImporterDescriptor descriptor : descriptors) {
+            for (String ext : descriptor.getSupportedExtensions()) {
+                IMPORTER_REGISTRY.put(ext.toLowerCase(), descriptor.getImporterClass());
+            }
+        }
     }
 
     private static <S> S loadService(Class<S> serviceClass) {
@@ -331,19 +341,40 @@ public class TableDataLoader<T> {
     public DataResponse<ImportResultDTO> build(Class<? extends FileImporter> importerClass, Class<T> dtoClass) {
         if (importMapper == null) throw new IllegalStateException("ImportMapper not set");
 
-        InputFile file = getInputFile();
-        String entity = (String) mapParam.getFilters().get(Constant.ENTITY_PARAM);
-        Long userId =  mapParam.getUserId();
+        try {
+            InputFile file = getInputFile();
+            String entity = (String) mapParam.getFilters().get(Constant.ENTITY_PARAM);
+            Long userId = mapParam.getUserId();
 
-        // Создаем импортер через фабрику
-        FileImporter fileImporter = IMPORTER_FACTORY.createImporter(importerClass, dtoClass, importMapper, mapParam.getFilters());
+            // Создаем импортер через фабрику
+            FileImporter fileImporter = IMPORTER_FACTORY.createImporter(importerClass, dtoClass, importMapper, mapParam.getFilters());
 
-        try (InputStream is = file.getInputStream()) {
-            ImportResultDTO result = fileImporter.importFile(is, file.getOriginalFilename(), file.getSize(), entity, userId);
-            return createImportResponse(Collections.singletonList(result));
-        } catch (IOException e) {
+            try (InputStream is = file.getInputStream()) {
+                ImportResultDTO result = fileImporter.importFile(is, file.getOriginalFilename(), file.getSize(), entity, userId);
+                return createImportResponse(Collections.singletonList(result));
+            }
+        } catch (Exception e) {
             throw new StandardFault(e);
         }
+    }
+
+    /**
+     * BUILD: Импорт одного файла с автоматическим выбором импортера по расширению.
+     *
+     * @param dtoClass Класс DTO.
+     * @return DataResponse со статистикой импорта.
+     */
+    public DataResponse<ImportResultDTO> build(Class<T> dtoClass) {
+        InputFile file = getInputFile();
+        String filename = file.getOriginalFilename();
+        String ext = getExtension(filename).replace(".", "").toLowerCase();
+
+        Class<? extends FileImporter> importerClass = IMPORTER_REGISTRY.get(ext);
+        if (importerClass == null) {
+            throw new BaseFaultException(Error.U014, "No importer found for extension: " + ext);
+        }
+
+        return build(importerClass, dtoClass);
     }
 
     /**
@@ -360,33 +391,35 @@ public class TableDataLoader<T> {
 
         if (importMapper == null) throw new IllegalStateException("ImportMapper not set");
 
-        InputFile archiveFile = getInputFile();
-        String entity = (String) mapParam.getFilters().get(Constant.ENTITY_PARAM);
-        Long userId = mapParam.getUserId();
+        try {
+            InputFile archiveFile = getInputFile();
+            String entity = (String) mapParam.getFilters().get(Constant.ENTITY_PARAM);
+            Long userId = mapParam.getUserId();
 
-        List<ImportResultDTO> results = new ArrayList<>();
+            List<ImportResultDTO> results = new ArrayList<>();
 
-        // TODO: Здесь будет вызов ArchiveIteratorFactory.createIterator(...)
-        try (InputStream is = archiveFile.getInputStream();
-             ArchiveIterator iterator = new ArchiveIterator(is, archiveFile.getOriginalFilename())) {
+            // TODO: Здесь будет вызов ArchiveIteratorFactory.createIterator(...)
+            try (InputStream is = archiveFile.getInputStream();
+                 ArchiveIterator iterator = new ArchiveIterator(is, archiveFile.getOriginalFilename())) {
 
-            while (iterator.hasNext()) {
-                var entry = iterator.next();
-                String fileName = entry.name();
-                // Выбор импортера по расширению
-                String ext = getExtension(fileName);
-                Class<? extends FileImporter> importerClass = importersMap.get(ext);
+                while (iterator.hasNext()) {
+                    var entry = iterator.next();
+                    String fileName = entry.name();
+                    // Выбор импортера по расширению
+                    String ext = getExtension(fileName);
+                    Class<? extends FileImporter> importerClass = importersMap.get(ext);
 
-                if (importerClass == null) continue; // Пропуск неподдерживаемых файлов
+                    if (importerClass == null) continue; // Пропуск неподдерживаемых файлов
 
-                FileImporter fileImporter = IMPORTER_FACTORY.createImporter(importerClass, dtoClass, importMapper, mapParam.getFilters());
+                    FileImporter fileImporter = IMPORTER_FACTORY.createImporter(importerClass, dtoClass, importMapper, mapParam.getFilters());
 
-                // Импортируем поток записи. Не закрываем его внутри импортера!
-                ImportResultDTO res = fileImporter.importFile(entry.content(), fileName, entry.size(), entity, userId);
-                results.add(res);
+                    // Импортируем поток записи. Не закрываем его внутри импортера!
+                    ImportResultDTO res = fileImporter.importFile(entry.content(), fileName, entry.size(), entity, userId);
+                    results.add(res);
+                }
+                return createImportResponse(results);
             }
-            return createImportResponse(results);
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new StandardFault(e);
         }
     }
@@ -456,14 +489,16 @@ public class TableDataLoader<T> {
 
     private void assignRecord(Map<String, Object> master, List<Map<String, Object>> child) {
         // Логика Flattening (замена родителя единственным ребенком)
-        if (replaceParentByChild != null && !replaceParentByChild.isEmpty()) {
+        if (replaceParentByChild != null) {
             if (child.size() == 1) {
                 master.clear();
                 master.putAll(child.getFirst()); // Используем getFirst()
                 return;
             }
             // Если детей много, удаляем из них лишние поля
-            child.forEach(record -> replaceParentByChild.forEach(record.keySet()::remove));
+            if (!replaceParentByChild.isEmpty()) {
+                child.forEach(record -> replaceParentByChild.forEach(record.keySet()::remove));
+            }
         }
         // Стандартная вставка списка детей
         master.put(Constant.EXPANDED_KEY, child);

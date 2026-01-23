@@ -53,8 +53,20 @@ public final class Constant {
     public static final String KEYWORD_SEARCH_TYPE_INTEGER = KEYWORD_SEARCH_TYPE.Integer.name();
     public static final String KEYWORD_SEARCH_TYPE_DOUBLE = KEYWORD_SEARCH_TYPE.Double.name();
 
+    public static final String COMMA = ",";
+    public static final String DOT = ".";
+    public static final String DEFAULT_SEPARATOR = COMMA;
+    public static final String DOUBLE_QUOTES = "\"";
+    public static final String EMBEDDED_DOUBLE_QUOTES = "\"\"";
+    public static final String NEW_LINE_UNIX = "\n";
+    public static final String NEW_LINE_WINDOWS = "\r\n";
+    public static final Integer DEFAULT_BATCH_SIZE = 100;
+    public static final char SEPARATOR = ';';
+    public static final java.nio.charset.Charset WINDOWS_1251_CHARSET = java.nio.charset.Charset.forName("windows-1251");
+
     public static final String FILE_PARAM = "file";
     public static final String ENTITY_PARAM = "entity";
+    public static final String SKIP_LINES = "skipLines";
 
     public static final String DELIMITER = "@";
 

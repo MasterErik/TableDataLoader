@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="su.erik.tabledataloader.DynamicImportTestMapper">
+
+    <insert id="insertHeader" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO upload_header (name, user_id) VALUES (#{name}, #{userId})
+    </insert>
+
+    <!-- Создание временной таблицы -->
+    <update id="createTempTable">
+        CREATE TABLE ##${tempTableName} (
+            UploadId BIGINT,
+            StaticCode BIGINT,
+            StaticName VARCHAR(255)
+            <foreach collection="allColumnHeaderList" item="col" separator="," open=",">
+                "${col}" DECIMAL(10, 2)
+            </foreach>
+        )
+    </update>
+
+    <!-- Вставка данных -->
+    <insert id="insert" parameterType="java.util.Map">
+        INSERT INTO ##${customFilters.tempTableName}
+        VALUES (#{customFilters.uploadId}, #{customFilters.importDTO.staticCode}, #{customFilters.importDTO.staticName}
+            <foreach collection="customFilters.importDTO.dynamicValues" item="value" separator="," open=",">
+                #{value}
+            </foreach>
+        )
+    </insert>
+
+    <!-- Завершение импорта: перевод столбцов в строки (UNPIVOT) -->
+    <update id="finish" parameterType="java.util.Map">
+        INSERT INTO ${customFilters.targetTableName} (upload_id, static_code, column_name, column_value)
+        <foreach collection="customFilters.dynamicHeaders" item="colName" separator=" UNION ALL ">
+            SELECT 
+                UploadId, 
+                StaticCode, 
+                '${colName}' as column_name, 
+                "${colName}" as column_value
+            FROM ##${customFilters.tempTableName}
+            WHERE "${colName}" IS NOT NULL
+        </foreach>
+        ;
+        DROP TABLE ##${customFilters.tempTableName};
+    </update>
+
+    <!-- Удаление данных -->
+    <delete id="delete">
+        DELETE FROM upload_header WHERE id = #{uploadId}
+    </delete>
+    
+    <!-- Вспомогательный метод для проверки данных в тесте -->
+    <select id="selectAll" resultType="java.util.LinkedHashMap">
+        SELECT * FROM ##${tableName} ORDER BY StaticCode
+    </select>
+
+    <select id="selectResult" resultType="java.util.LinkedHashMap">
+        SELECT * FROM ${tableName} WHERE upload_id = #{uploadId} ORDER BY static_code, column_name
+    </select>
+
+</mapper>

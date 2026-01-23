@@ -2,27 +2,38 @@ package su.erik.tabledataloader.mocks;
 
 import su.erik.tabledataloader.importer.FileImporter;
 import su.erik.tabledataloader.importer.ImportMapper;
-import su.erik.tabledataloader.importer.dto.ImportResultDTO;
 import su.erik.tabledataloader.importer.factory.FileImporterFactory;
+import su.erik.tabledataloader.importer.factory.ReflectionFileImporterFactory;
 
-import java.io.InputStream;
 import java.util.Map;
 
+/**
+ * Мок-фабрика, которая теперь использует Reflection для создания реальных импортеров в тестах.
+ * Это позволяет тестировать интеграцию с CsvFileImporter через TableDataLoader.
+ */
 public class MockFileImporterFactory implements FileImporterFactory {
 
-    @Override
-    public <T> FileImporter createImporter(Class<? extends FileImporter> importerClass, Class<T> importDTOClass, ImportMapper<T> importMapper, Map<String, Object> customFilters) {
-        // Возвращаем заглушку импортера, которая всегда возвращает успех
-        return new FileImporter() {
-            @Override
-            public ImportResultDTO importFile(InputStream inputStream, String name, long size, String entity, Long userId) {
-                // Эмуляция работы: читаем поток (чтобы не было ошибок), возвращаем фиктивный ID
-                try {
-                    inputStream.readAllBytes();
-                } catch (Exception ignored) {}
+    private final ReflectionFileImporterFactory delegate = new ReflectionFileImporterFactory();
 
-                return new ImportResultDTO(123L, 10); // ID=123, Count=10
-            }
+    @Override
+    public <T> FileImporter createImporter(
+            Class<? extends FileImporter> importerClass,
+            Class<T> importDTOClass,
+            ImportMapper<T> importMapper,
+            Map<String, Object> customFilters) {
+        
+        // Если передан конкретный класс импортера (например, CsvFileImporter), создаем его реально.
+        // Иначе возвращаем заглушку.
+        if (importerClass != null && !importerClass.isInterface()) {
+            return delegate.createImporter(importerClass, importDTOClass, importMapper, customFilters);
+        }
+
+        // Default Mock behavior
+        return (inputStream, name, size, entity, userId) -> {
+            try {
+                inputStream.readAllBytes();
+            } catch (Exception ignored) {}
+            return new su.erik.tabledataloader.importer.dto.ImportResultDTO(123L, 10);
         };
     }
 }
