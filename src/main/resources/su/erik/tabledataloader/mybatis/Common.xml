@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="su.erik.tabledataloader.mybatis.Common">
+
+    <!-- Пагинация (OFFSET/LIMIT) для H2/PostgreSQL/MSSQL (современный синтаксис) -->
+    <sql id="paging">
+        <if test="limit != null">
+            OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+        </if>
+    </sql>
+
+    <!-- Сортировка -->
+    <sql id="ordering">
+        <if test="orderBy != null and !orderBy.isEmpty()">
+            ORDER BY
+            <foreach collection="orderBy" item="sort" separator=",">
+                ${sort.sortBy} ${sort.sortOrder}
+            </foreach>
+        </if>
+    </sql>
+
+</mapper>
