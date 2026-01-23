@@ -1,5 +1,6 @@
 package su.erik.tabledataloader;
 
+import org.apache.ibatis.annotations.Flush;
 import org.apache.ibatis.annotations.Param;
 import su.erik.tabledataloader.importer.ImportMapper;
 import su.erik.tabledataloader.importer.dto.UploadDTO;
@@ -25,13 +26,12 @@ public interface DynamicImportTestMapper extends ImportMapper<DynamicImportTestD
     void finish(@Param("customFilters") Map<String, Object> customFilters);
 
     @SuppressWarnings("MybatisMapperMethodInspection")
-    @org.apache.ibatis.annotations.Flush
+    @Flush
     @Override
     void flush();
 
     // Дополнительный метод для проверки
-    List<Map<String, Object>> selectAll(@org.apache.ibatis.annotations.Param("tableName") String tableName);
+    List<Map<String, Object>> selectAll(@Param("tableName") String tableName);
 
-    List<Map<String, Object>> selectResult(@org.apache.ibatis.annotations.Param("uploadId") long uploadId, 
-                                           @org.apache.ibatis.annotations.Param("tableName") String tableName);
+    List<Map<String, Object>> selectResult(@Param("uploadId") long uploadId, @Param("tableName") String tableName);
 }
