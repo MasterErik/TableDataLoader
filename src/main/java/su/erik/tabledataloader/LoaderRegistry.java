@@ -2,35 +2,32 @@ package su.erik.tabledataloader;
 
 import com.puls.centralpricing.common.exception.BaseFaultException;
 import com.puls.centralpricing.common.exception.Error;
+import com.puls.centralpricing.common.exception.StandardFault;
 import su.erik.tabledataloader.config.EnumLoaderType;
 import su.erik.tabledataloader.exporter.FileExporter;
-import su.erik.tabledataloader.exporter.factory.FileExporterFactory;
 import su.erik.tabledataloader.importer.ImportMapper;
-import su.erik.tabledataloader.importer.factory.FileImporterFactory;
 import su.erik.tabledataloader.importer.loader.FileLoader;
 import su.erik.tabledataloader.spi.LoaderDescriptor;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ServiceLoader;
+import java.lang.reflect.Constructor;
+import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * Реестр загрузчиков и экспортеров.
+ * Управляет метаданными компонентов и их созданием.
  */
 public class LoaderRegistry {
 
     private final Map<String, Class<? extends FileLoader>> loaderClasses = new HashMap<>();
     private final Map<String, Class<? extends FileExporter>> exporterClasses = new HashMap<>();
-
-    private FileImporterFactory loaderFactory;
-    private FileExporterFactory exporterFactory;
-
+    
     public LoaderRegistry() {
         refresh();
     }
 
     /**
-     * Перезагружает сервисы SPI (дескрипторы и фабрики).
+     * Перезагружает сервисы SPI (дескрипторы).
      */
     public synchronized void refresh() {
         loaderClasses.clear();
@@ -40,18 +37,12 @@ public class LoaderRegistry {
         for (LoaderDescriptor descriptor : descriptors) {
             registerDescriptor(descriptor);
         }
-
-        ServiceLoader<FileImporterFactory> importerFactories = ServiceLoader.load(FileImporterFactory.class);
-        this.loaderFactory = importerFactories.findFirst().orElse(null);
-
-        ServiceLoader<FileExporterFactory> exporterFactories = ServiceLoader.load(FileExporterFactory.class);
-        this.exporterFactory = exporterFactories.findFirst().orElse(null);
     }
 
     @SuppressWarnings("unchecked")
     private void registerDescriptor(LoaderDescriptor descriptor) {
         Class<?> componentClass = descriptor.getComponentClass();
-
+        
         if (descriptor.getType() == EnumLoaderType.LOADER) {
             if (FileLoader.class.isAssignableFrom(componentClass)) {
                 for (String extension : descriptor.getSupportedExtensions()) {
@@ -67,9 +58,6 @@ public class LoaderRegistry {
         }
     }
 
-    public void setLoaderFactory(FileImporterFactory factory) { this.loaderFactory = factory; }
-    public void setExporterFactory(FileExporterFactory factory) { this.exporterFactory = factory; }
-
     public void registerLoader(String extension, Class<? extends FileLoader> loaderClass) { loaderClasses.put(extension.toLowerCase(), loaderClass); }
     public void registerExporter(String extension, Class<? extends FileExporter> exporterClass) { exporterClasses.put(extension.toLowerCase(), exporterClass); }
 
@@ -77,7 +65,7 @@ public class LoaderRegistry {
         if (extension == null) return null;
         return loaderClasses.get(extension.toLowerCase().replace(".", ""));
     }
-
+    
     public Class<? extends FileExporter> getExporterClass(String extension) {
         if (extension == null) return null;
         return exporterClasses.get(extension.toLowerCase().replace(".", ""));
@@ -90,20 +78,33 @@ public class LoaderRegistry {
     }
 
     public <T> FileLoader createLoader(Class<? extends FileLoader> loaderClass, Class<T> dtoClass, ImportMapper<T> mapper, Map<String, Object> filters) {
-        // Мы больше не можем передавать "this" как ImporterRegistry (имя изменилось)
-        // Но ZipFileLoader ожидает реестр в фильтрах.
         filters.put("loaderRegistry", this);
-        if (loaderFactory == null) throw new IllegalStateException("FileImporterFactory not initialized");
-        return loaderFactory.createImporter(loaderClass, dtoClass, mapper, filters);
+        try {
+            // Ищем конструктор: (Class<?> dtoClass, ImportMapper<?> mapper, Map<String, Object> filters)
+            Constructor<? extends FileLoader> constructor = loaderClass.getConstructor(Class.class, ImportMapper.class, Map.class);
+            return constructor.newInstance(dtoClass, mapper, filters);
+        } catch (Exception e) {
+            throw new StandardFault(e);
+        }
     }
-
+    
     public <T> FileExporter createExporter(Iterable<T> data, Class<? extends FileExporter> viewClass) {
-        if (exporterFactory == null) throw new IllegalStateException("FileExporterFactory not initialized");
-        return exporterFactory.createExporter(data, viewClass);
+        try {
+            // Ищем конструктор: (Iterable<?> data)
+            Constructor<? extends FileExporter> constructor = viewClass.getConstructor(Iterable.class);
+            return constructor.newInstance(data);
+        } catch (Exception e) {
+            throw new StandardFault(e);
+        }
     }
-
-    public <T> FileExporter createExporter(Iterable<T> data, Class<? extends FileExporter> viewClass, java.util.function.Consumer<T> consumer) {
-        if (exporterFactory == null) throw new IllegalStateException("FileExporterFactory not initialized");
-        return exporterFactory.createExporter(data, viewClass, consumer);
+    
+    public <T> FileExporter createExporter(Iterable<T> data, Class<? extends FileExporter> viewClass, Consumer<T> consumer) {
+        try {
+            // Ищем конструктор: (Iterable<?> data, Consumer<?> consumer)
+            Constructor<? extends FileExporter> constructor = viewClass.getConstructor(Iterable.class, Consumer.class);
+            return constructor.newInstance(data, consumer);
+        } catch (Exception e) {
+            throw new StandardFault(e);
+        }
     }
 }

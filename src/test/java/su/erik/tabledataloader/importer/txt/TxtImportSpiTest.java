@@ -1,5 +1,6 @@
 package su.erik.tabledataloader.importer.txt;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import su.erik.tabledataloader.TableDataLoader;
 import su.erik.tabledataloader.dto.DataResponse;
@@ -21,8 +22,6 @@ class TxtImportSpiTest {
 
     public static class TxtDto {
         private String content;
-        public String getContent() { return content; }
-        public void setContent(String s) { this.content = s; }
     }
 
     public static class MockTxtMapper implements ImportMapper<TxtDto> {
@@ -44,8 +43,29 @@ class TxtImportSpiTest {
     }
 
     @Test
-    void testSpiLoading() {
-        TableDataLoader.registerLoader("txt", TxtFileLoader.class);
+    @DisplayName("SPI: Проверка ручной регистрации лоадера")
+    void testManualRegistration() {
+        TableDataLoader.registerLoader("txt-manual", TxtFileLoader.class);
+
+        InputFile file = new InputFile() {
+            @Override public InputStream getInputStream() { return new ByteArrayInputStream(new byte[0]); }
+            @Override public String getOriginalFilename() { return "test.txt-manual"; }
+            @Override public long getSize() { return 0; }
+        };
+
+        var loader = TableDataLoader.<TxtDto>create()
+                .setMapParam(su.erik.tabledataloader.config.Constant.FILE_PARAM, file)
+                .useImportMapper(new MockTxtMapper());
+
+        DataResponse<ResultDTO> response = loader.build(TxtDto.class);
+        assertEquals(1, response.items().size());
+    }
+
+    @Test
+    @DisplayName("SPI: Проверка автоматической загрузки через ServiceLoader")
+    void testAutomaticSpiLoading() {
+        // Мы НЕ вызываем registerLoader здесь.
+        // LoaderRegistry должен подтянуть TxtImporterDescriptor из META-INF/services
 
         InputFile file = new InputFile() {
             @Override public InputStream getInputStream() { return new ByteArrayInputStream(new byte[0]); }
@@ -57,7 +77,8 @@ class TxtImportSpiTest {
                 .setMapParam(su.erik.tabledataloader.config.Constant.FILE_PARAM, file)
                 .useImportMapper(new MockTxtMapper());
 
+        // Если SPI сработал, дескриптор для "txt" зарегистрирован
         DataResponse<ResultDTO> response = loader.build(TxtDto.class);
-        assertEquals(1, response.items().size());
+        assertEquals(1, response.items().size(), "Лоадер для .txt должен быть найден автоматически через SPI");
     }
 }

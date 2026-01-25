@@ -6,7 +6,6 @@ import su.erik.tabledataloader.DynamicImportTestDTO;
 import su.erik.tabledataloader.importer.model.ResultDTO;
 import su.erik.tabledataloader.dto.DataResponse;
 import su.erik.tabledataloader.dto.InputFile;
-import su.erik.tabledataloader.importer.factory.ReflectionFileImporterFactory;
 import su.erik.tabledataloader.context.DataLoaderContext;
 import su.erik.tabledataloader.LoaderRegistry;
 
@@ -23,7 +22,7 @@ class RealMyBatisImportTest {
     void testRealImportCycle() {
         // Создаем изолированный контекст для теста
         LoaderRegistry registry = new LoaderRegistry();
-        registry.setLoaderFactory(new ReflectionFileImporterFactory());
+        // Фабрика больше не нужна
         DataLoaderContext context = new DataLoaderContext(registry, null);
         
         // CSV: ID;Code;Name;Region1;Region2
@@ -42,7 +41,6 @@ class RealMyBatisImportTest {
 
         DataResponse<ResultDTO> importResponse = loader.build(DynamicImportTestDTO.class);
         
-        // Используем items() т.к. DataResponse это record
         assertFalse(importResponse.items().isEmpty(), "Список результатов импорта не должен быть пустым");
         ResultDTO result = importResponse.items().get(0);
         

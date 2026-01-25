@@ -25,6 +25,9 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    // SLF4J Implementation for tests
+    testImplementation 'org.slf4j:slf4j-simple:2.0.12'
+
     // Spring dependencies for testing SpringAdapter if needed
     // If you don't use SpringAdapter in tests, you can remove these
     testImplementation 'org.springframework:spring-test:7.0.3'

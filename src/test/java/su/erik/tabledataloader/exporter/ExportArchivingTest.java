@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import su.erik.tabledataloader.TableDataLoader;
 import su.erik.tabledataloader.dto.ExportResource;
 import su.erik.tabledataloader.exporter.csv.CsvFileExporter;
-import su.erik.tabledataloader.exporter.factory.ReflectionFileExporterFactory;
 import su.erik.tabledataloader.context.DataLoaderContext;
 import su.erik.tabledataloader.LoaderRegistry;
 
@@ -24,7 +23,7 @@ class ExportArchivingTest {
     void testExportWithArchiving() throws Exception {
         // Создаем изолированный контекст
         LoaderRegistry registry = new LoaderRegistry();
-        registry.setExporterFactory(new ReflectionFileExporterFactory());
+        // Фабрика больше не нужна, registry сам создает
         registry.registerExporter("csv", CsvFileExporter.class);
         DataLoaderContext context = new DataLoaderContext(registry, null);
 

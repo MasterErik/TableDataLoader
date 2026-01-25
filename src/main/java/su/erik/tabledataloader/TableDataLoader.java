@@ -5,21 +5,20 @@ import com.puls.centralpricing.common.exception.Error;
 import com.puls.centralpricing.common.exception.StandardFault;
 import su.erik.tabledataloader.config.Constant;
 import su.erik.tabledataloader.config.StandardParam;
-import su.erik.tabledataloader.context.DataLoaderContext;
 import su.erik.tabledataloader.dto.DataResponse;
 import su.erik.tabledataloader.dto.ExportResource;
 import su.erik.tabledataloader.dto.InputFile;
 import su.erik.tabledataloader.dto.LoaderHttpStatus;
 import su.erik.tabledataloader.exporter.ExportedFile;
 import su.erik.tabledataloader.exporter.FileExporter;
-import su.erik.tabledataloader.exporter.ZipExporter;
-import su.erik.tabledataloader.exporter.factory.FileExporterFactory;
 import su.erik.tabledataloader.importer.ImportMapper;
-import su.erik.tabledataloader.importer.factory.FileImporterFactory;
 import su.erik.tabledataloader.importer.loader.FileLoader;
 import su.erik.tabledataloader.importer.model.ResultDTO;
+import su.erik.tabledataloader.exporter.ZipExporter;
+import su.erik.tabledataloader.context.DataLoaderContext;
 import su.erik.tabledataloader.param.HeaderUtils;
 import su.erik.tabledataloader.param.MapParam;
+import su.erik.tabledataloader.spi.MapParamProvider;
 
 import java.io.InputStream;
 import java.util.*;
@@ -64,14 +63,6 @@ public class TableDataLoader<T> {
         return new TableDataLoader<>(context);
     }
 
-    public static void setLoaderFactory(FileImporterFactory factory) {
-        DataLoaderContext.getDefault().getLoaderRegistry().setLoaderFactory(factory);
-    }
-
-    public static void setExporterFactory(FileExporterFactory factory) {
-        DataLoaderContext.getDefault().getLoaderRegistry().setExporterFactory(factory);
-    }
-
     public static void registerLoader(String extension, Class<? extends FileLoader> loaderClass) {
         DataLoaderContext.getDefault().getLoaderRegistry().registerLoader(extension, loaderClass);
     }
@@ -96,7 +87,7 @@ public class TableDataLoader<T> {
     public TableDataLoader<T> archiveResult() { this.archiveResult = true; return this; }
     public TableDataLoader<T> setMapParam(MapParam param) { this.mapParam = param; return this; }
     public MapParam getMapParam() { if (mapParam == null) mapParam = new MapParam(); return mapParam; }
-
+    
     public TableDataLoader<T> setMapParam(String field, Object value) { getMapParam().filter(field, value); return this; }
     public TableDataLoader<T> setMapParam(String field, String operator, Object value) { getMapParam().addCriteria(field, operator, value); return this; }
     public TableDataLoader<T> setLimit(int limit) { getMapParam().setLimit(limit); return this; }
@@ -151,10 +142,6 @@ public class TableDataLoader<T> {
                 exporter = new ZipExporter(exporter, fileName);
             }
 
-            // Исправляем предупреждение ARM: используем try-with-resources для ExportedFile
-            // Но поток из него должен "выжить" для ExportResource.
-            // Если реализация ExportedFile корректна, закрытие самого объекта не должно закрывать поток,
-            // если только он не владеет файловым дескриптором.
             try (ExportedFile exportedFile = exporter.export()) {
                 return new ExportResource(
                         exporter.getFullFileName(fileName),
