@@ -56,7 +56,7 @@
     * `getSupportedExtensions()`: Список расширений файлов (csv, zip, и т.д.).
 * **`FileLoader` / `FileExporter`:** Единые интерфейсы для реализации логики загрузки и выгрузки.
 
-### Работа с ZIP Архивами
+### Работа с Архивами
 Библиотека поддерживает прозрачную работу с архивами.
 
 #### Импорт (ZipFileLoader)
@@ -69,16 +69,53 @@
 * Активируется в `TableDataLoader` методом `.archiveResult()`.
 * **Пример**: `build(CsvFileExporter.class, "report")` с включенным архивированием создаст `report.zip`, внутри которого будет лежать `report.csv`.
 
+### Пример: Регистрация нового формата через SPI
+
+Для добавления поддержки нового формата (например, Excel) необходимо выполнить 3 шага:
+
+1. **Реализовать интерфейс `FileLoader`**:
+```java
+public class ExcelFileLoader implements FileLoader {
+    public ExcelFileLoader(Class<?> dtoClass, ImportMapper<?> mapper, Map<String, Object> filters) { ... }
+    @Override
+    public ResultDTO importFile(InputStream is, String name, long size, String entity, Long userId) { ... }
+}
+```
+
+2. **Создать дескриптор `LoaderDescriptor`**:
+```java
+public class ExcelLoaderDescriptor implements LoaderDescriptor {
+    @Override public EnumLoaderType getType() { return EnumLoaderType.LOADER; }
+    @Override public List<String> getSupportedExtensions() { return List.of("xlsx", "xls"); }
+    @Override public Class<?> getComponentClass() { return ExcelFileLoader.class; }
+}
+```
+
+3. **Зарегистрировать в SPI**:
+Создать файл `src/main/resources/META-INF/services/su.erik.tabledataloader.spi.LoaderDescriptor` и добавить туда полное имя класса:
+`com.your.package.ExcelLoaderDescriptor`
+
+### Пример: Регистрация нового архиватора
+
+Архиваторы регистрируются точно так же, как и обычные лоадеры, но их логика заключается в распаковке и делегировании.
+
+1. **Реализовать итератор**: Наследуйте `AbstractIterator` (например, `RarArchiveIterator`).
+2. **Реализовать лоадер**: `RarFileLoader` (аналогично `ZipFileLoader`).
+3. **Создать и зарегистрировать дескриптор**:
+```java
+public class RarLoaderDescriptor implements LoaderDescriptor {
+    @Override public EnumLoaderType getType() { return EnumLoaderType.LOADER; }
+    @Override public List<String> getSupportedExtensions() { return List.of("rar"); }
+    @Override public Class<?> getComponentClass() { return RarFileLoader.class; }
+}
+```
+
 ## 4. Экосистема и Интеграция
 
 `TableDataLoader` работает в связке с соседними библиотеками.
 
-### A. Библиотека `file-import-export` (Import)
-
-Отвечает за парсинг файлов.
-
-* **Абстракция:** `TableDataLoader` вызывает `FileImporter`, не зная деталей формата (CSV, Excel).
-* **Контракт:** Возвращает строго типизированный `ImportResultDTO` (uploadId, count), а не `Map`.
+### A. Библиотека `file-import-export` (Legacy Import)
+*Отвечает за низкоуровневый парсинг (интегрируется через адаптеры).*
 
 ### B. Управление Ресурсами (ARM)
 * **AutoCloseable:** Все ресурсы экспорта (`ExportedFile`, `ExportResource`) реализуют этот интерфейс.
@@ -112,7 +149,7 @@ DataResponse<Map<String, Object>> response = TableDataLoader.<Map<String, Object
     .filter("number", 10)                    // Простой фильтр (добавляет в filters)
     .addCriteria("name", "test №1")          // SQL условие (AND name = 'test №1')
     .addCriteria("id", "=", 2, Filter.SqlSuffix.OR) // OR id = 2
-    .archiveResult()                         // (NEW) Автоматически упаковать результат в ZIP
+    .archiveResult()                         // Автоматически упаковать результат в ZIP
     .useToGetData(testMapper::testSelect)    // Ссылка на метод MyBatis для выборки данных
     .useToCount(testMapper::count)           // Ссылка на метод MyBatis для подсчета (Total Count)
     .build(CsvFileExporter.class, "report"); // Экспорт в CSV (вернет report.zip)
