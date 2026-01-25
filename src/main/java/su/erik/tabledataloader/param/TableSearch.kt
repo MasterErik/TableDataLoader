@@ -54,7 +54,7 @@ class TableSearch {
         if (keywordSearchType == Constant.KEYWORD_SEARCH_TYPE.Double.name) {
             try {
                 keywordSearch = keywordSearch.toDouble().toString()
-            } catch (e: NumberFormatException) {
+            } catch (_: NumberFormatException) {
                 // Игнорируем, остаемся со строкой
             }
         }
