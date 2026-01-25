@@ -10,11 +10,10 @@
 **Критически важное правило:** Библиотека строго изолирована от Spring Framework, Jakarta EE или любых других веб-фреймворков.
 
 * **POJO & Kotlin:** Все компоненты (`MapParam`, `TableDataLoader`) являются чистыми объектами.
-* **SPI (Service Provider Interface):** Взаимодействие с внешним миром реализуется через интерфейсы и функциональные ссылки:
-* Получение параметров из HTTP-контекста происходит через утилиты (например, `HeaderUtils`), принимающие `Function<String, String>`, а не `HttpServletRequest`.
-* Получение мапперов происходит через передачу ссылок на методы (`testMapper::select`), а не через внедрение бинов Spring внутри библиотеки.
-
-
+* **Контекст (No Statics):** Используется `DataLoaderContext` для передачи зависимостей (`LoaderRegistry`, `MapParamProvider`). Статическое состояние исключено для обеспечения тестируемости и изоляции.
+* **SPI (Service Provider Interface):** Взаимодействие с внешним миром реализуется через стандартный механизм `ServiceLoader`:
+* Получение параметров из HTTP-контекста происходит через `MapParamProvider`.
+* Регистрация компонентов (лоадеров/экспортеров) происходит через `LoaderDescriptor`.
 * **Отсутствие JSON:** Внутри библиотеки (включая DTO) **запрещено** использование аннотаций Jackson/Gson (`@JsonProperty`), так как это нарушает принцип независимости от библиотек сериализации.
 
 ## 2. Ядро: MapParam (Data Transfer Object)
@@ -46,7 +45,31 @@
 * **Нет наследования:** Классы `Paging` и `Sort` удалены. Вся логика внутри `MapParam`.
 * **Properties-Delegates:** Поля `limit`, `offset`, `userId` — это свойства, которые физически читают/пишут в карту `filters`.
 
-## 3. Экосистема и Интеграция
+## 3. Архитектура Загрузки (Loader Architecture)
+
+Библиотека использует унифицированную архитектуру для импорта и экспорта данных.
+
+### Компоненты
+* **`LoaderRegistry`:** Центральный реестр, управляющий жизненным циклом компонентов. Создает экземпляры через рефлексию, требуя стандартные конструкторы.
+* **`LoaderDescriptor`:** SPI-интерфейс для регистрации компонентов.
+    * `getType()`: Определяет роль (`LOADER` или `EXPORTER`).
+    * `getSupportedExtensions()`: Список расширений файлов (csv, zip, и т.д.).
+* **`FileLoader` / `FileExporter`:** Единые интерфейсы для реализации логики загрузки и выгрузки.
+
+### Работа с ZIP Архивами
+Библиотека поддерживает прозрачную работу с архивами.
+
+#### Импорт (ZipFileLoader)
+* Реализует потоковую обработку через `AbstractIterator` и `ZipArchiveIterator`.
+* Не распаковывает весь архив в память.
+* Поддерживает рекурсивный вызов других лоадеров для файлов внутри архива (через `LoaderRegistry` в контексте).
+
+#### Экспорт (ZipExporter)
+* Реализован как декоратор (`ZipExporter`), оборачивающий результат работы любого другого экспортера (например, `CsvFileExporter`).
+* Активируется в `TableDataLoader` методом `.archiveResult()`.
+* **Пример**: `build(CsvFileExporter.class, "report")` с включенным архивированием создаст `report.zip`, внутри которого будет лежать `report.csv`.
+
+## 4. Экосистема и Интеграция
 
 `TableDataLoader` работает в связке с соседними библиотеками.
 
@@ -57,15 +80,11 @@
 * **Абстракция:** `TableDataLoader` вызывает `FileImporter`, не зная деталей формата (CSV, Excel).
 * **Контракт:** Возвращает строго типизированный `ImportResultDTO` (uploadId, count), а не `Map`.
 
-### B. Библиотека работы с Архивами (Archives)
+### B. Управление Ресурсами (ARM)
+* **AutoCloseable:** Все ресурсы экспорта (`ExportedFile`, `ExportResource`) реализуют этот интерфейс.
+* **Try-With-Resources:** Внутренние механизмы (чтение CSV, ZIP) строго следуют паттерну автоматического управления ресурсами.
 
-Новая библиотека для потоковой обработки ZIP-архивов.
-
-* **Потоковая обработка:** Использует `ArchiveIterator` для обхода файлов без полной распаковки.
-* **Правило Именования:** При импорте архива в бизнес-логику передается **имя самого архива**. Имена вложенных файлов используются только технически (для выбора стратегии парсинга).
-* **Результат:** Метод `buildArchive` возвращает список результатов, где каждый элемент привязан к одной логической загрузке.
-
-## 4. Бизнес-Правила и Валидация
+## 5. Бизнес-Правила и Валидация
 
 1. **Правило U007 (Пагинация и Сортировка):**
    Если задана пагинация (`limit` или `offset` != null), запрос **обязан** содержать параметры сортировки (`orderBy`). Иначе `mapParam.check()` выбрасывает исключение.
@@ -78,7 +97,7 @@
    Направление сортировки парсится через `SortDirection.fromString()`. Некорректные значения безопасно превращаются в `ASC`.
 4. **Пользователь:** `UserContext` отсутствует. `userId` и `userRoles` хранятся в `filters`.
 
-## 5. Паттерн Использования (Fluent Builder)
+## 6. Паттерн Использования (Fluent Builder)
 
 Основной способ работы — цепочка вызовов через `TableDataLoader`. Загрузчик проксирует методы настройки параметров в `MapParam` и выполняет оркестрацию вызовов MyBatis.
 
@@ -88,17 +107,15 @@ MapParam mapParam = new MapParam();
 mapParam.setUserId(100L); // Пример установки контекста
 
 // 2. Создание и выполнение загрузчика
-DataResponse<Map<String, Object>> response = TableDataLoader.<Map<String, Object>>create()
+DataResponse<Map<String, Object>> response = TableDataLoader.<Map<String, Object>>create() // Использует дефолтный контекст
     .setMapParam(mapParam)                   // Внедряем базовые параметры
     .filter("number", 10)                    // Простой фильтр (добавляет в filters)
     .addCriteria("name", "test №1")          // SQL условие (AND name = 'test №1')
     .addCriteria("id", "=", 2, Filter.SqlSuffix.OR) // OR id = 2
-    .openBracket()                           // (
-        .addCriteria("name", "test №2")      // name = 'test №2'
-    .closeBracket()                          // )
+    .archiveResult()                         // (NEW) Автоматически упаковать результат в ZIP
     .useToGetData(testMapper::testSelect)    // Ссылка на метод MyBatis для выборки данных
     .useToCount(testMapper::count)           // Ссылка на метод MyBatis для подсчета (Total Count)
-    .build();                                // Выполнение запроса, валидация U007 и сборка ответа
+    .build(CsvFileExporter.class, "report"); // Экспорт в CSV (вернет report.zip)
 
 // Пример сигнатуры методов Mapper:
 // List<Map<String, Object>> testSelect(@Param("mapParam") MapParam mapParam);
@@ -106,15 +123,19 @@ DataResponse<Map<String, Object>> response = TableDataLoader.<Map<String, Object
 
 ```
 
-## 6. Рекомендации для AI-Агентов
+## 7. Рекомендации для AI-Агентов
 * При анализе кода учитывайте, что TableDataLoader делегирует хранение состояния объекту MapParam.
 * При генерации SQL XML для MyBatis опирайтесь на коллекцию criteria для блока WHERE и коллекцию filters для простых параметров.
 * Никогда не добавляйте зависимости от javax.servlet или spring-web в ядро библиотеки.
-1. **Refactoring Safety:** При рефакторинге помните, что `MapParam` — это Kotlin-класс. Используйте геттеры/сеттеры в Java (`setLimit(10)`), но property syntax в Kotlin (`limit = 10`).
-2. **SQL Generation:** При анализе генерации SQL (MyBatis):
+1. **Context Awareness:** При рефакторинге или создании тестов всегда используйте `DataLoaderContext` для изоляции. Избегайте статических вызовов `resetAndInitRegistries()`, если можно создать новый контекст.
+2. **SPI Registration:** Для добавления поддержки нового формата создайте `LoaderDescriptor` и зарегистрируйте его в `META-INF/services`.
+3. **Resource Safety:** Следите за закрытием потоков. `ExportResource` должен закрываться вызывающей стороной (например, в контроллере).
+4. **Variable Naming:** Используйте только описательные имена переменных. Никаких `is`, `os`, `e`, `it` (кроме лямбд Kotlin).
+5. **Refactoring Safety:** При рефакторинге помните, что `MapParam` — это Kotlin-класс. Используйте геттеры/сеттеры в Java (`setLimit(10)`), но property syntax в Kotlin (`limit = 10`).
+6. **SQL Generation:** При анализе генерации SQL (MyBatis):
 * `limit`/`offset` берутся из `filters`.
 * `criteria` разворачиваются в условия `WHERE`.
 * `masterListId` разворачивается в условие `IN (...)`.
-3. 
-4. **Reflection:** Поле `filters` инициализируется сразу (`new HashMap`), что делает его безопасным для доступа через Reflection в фреймворках.
-4. **Enum Access:** Ссылайтесь на направление сортировки как `MapParam.SortDirection.ASC`.
+7.
+8. **Reflection:** Поле `filters` инициализируется сразу (`new HashMap`), что делает его безопасным для доступа через Reflection в фреймворках.
+9. **Enum Access:** Ссылайтесь на направление сортировки как `MapParam.SortDirection.ASC`.
