@@ -1,6 +1,5 @@
 package su.erik.tabledataloader.archive;
 
-import su.erik.tabledataloader.dto.ArchiveEntry;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
@@ -8,9 +7,9 @@ import java.util.Iterator;
 /**
  * Фасад для работы с архивами различных типов.
  */
-public class ArchiveIterator implements Iterator<ArchiveEntry>, AutoCloseable {
+public class ArchiveIterator implements Iterator<EntryModel>, AutoCloseable {
 
-    private final AbstractArchiveIterator delegate;
+    private final AbstractIterator delegate;
 
     public ArchiveIterator(InputStream inputStream, String fileName) throws IOException {
         if (fileName.toLowerCase().endsWith(".zip")) {
@@ -27,7 +26,7 @@ public class ArchiveIterator implements Iterator<ArchiveEntry>, AutoCloseable {
     }
 
     @Override
-    public ArchiveEntry next() {
+    public EntryModel next() {
         return delegate.next();
     }
 

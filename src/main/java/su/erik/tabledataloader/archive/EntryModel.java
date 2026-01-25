@@ -1,4 +1,4 @@
-package su.erik.tabledataloader.dto;
+package su.erik.tabledataloader.archive;
 
 import java.io.InputStream;
 
@@ -9,4 +9,4 @@ import java.io.InputStream;
  * @param size Размер в байтах (если известен, иначе -1).
  * @param content Поток данных для чтения содержимого.
  */
-public record ArchiveEntry(String name, long size, InputStream content) {}
+public record EntryModel(String name, long size, InputStream content) {}

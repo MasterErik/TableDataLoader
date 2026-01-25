@@ -1,6 +1,6 @@
 package su.erik.tabledataloader.importer.txt;
 
-import su.erik.tabledataloader.importer.AbstractFileImporter;
+import su.erik.tabledataloader.importer.AbstractFileLoader;
 import su.erik.tabledataloader.importer.ImportMapper;
 
 import java.io.BufferedReader;
@@ -11,9 +11,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-public class TxtFileImporter extends AbstractFileImporter<TxtDto> {
+public class TxtFileLoader extends AbstractFileLoader<TxtDto> {
 
-    public TxtFileImporter(Class<TxtDto> importDTOClass, ImportMapper<TxtDto> importMapper, Map<String, Object> customFilters) {
+    public TxtFileLoader(Class<TxtDto> importDTOClass, ImportMapper<TxtDto> importMapper, Map<String, Object> customFilters) {
         super(importDTOClass, importMapper, customFilters);
     }
 

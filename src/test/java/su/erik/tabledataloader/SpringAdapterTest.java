@@ -42,9 +42,9 @@ class SpringAdapterTest {
 
         // В теле ответа лежит DataResponse, а не List
         assertNotNull(response.getBody());
-        assertEquals(100L, response.getBody().getTotal());
-        assertEquals(2, response.getBody().getItems().size());
-        assertEquals("Item A", response.getBody().getItems().getFirst());
+        assertEquals(100L, response.getBody().total());
+        assertEquals(2, response.getBody().items().size());
+        assertEquals("Item A", response.getBody().items().getFirst());
     }
 
     @Test

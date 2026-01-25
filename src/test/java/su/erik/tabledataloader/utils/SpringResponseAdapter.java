@@ -9,8 +9,6 @@ import su.erik.tabledataloader.dto.DataResponse;
 import su.erik.tabledataloader.dto.ExportResource;
 import su.erik.tabledataloader.dto.LoaderHttpStatus;
 
-import java.util.List;
-
 /**
  * Адаптер для преобразования ответов библиотеки (DataResponse, ExportResource)
  * в объекты ответов Spring Framework (ResponseEntity).
@@ -22,7 +20,7 @@ public class SpringResponseAdapter {
      */
     public static <T> ResponseEntity<DataResponse<T>> toListResponseEntity(DataResponse<T> response) {
         return ResponseEntity
-                .status(mapStatus(response.getStatus()))
+                .status(mapStatus(response.status()))
                 .headers(toHttpHeaders(response))
                 .body(response);
     }
@@ -33,11 +31,11 @@ public class SpringResponseAdapter {
      */
     public static <T> ResponseEntity<T> toSingleResponseEntity(DataResponse<T> response) {
         T body = null;
-        if (response.getItems() != null && !response.getItems().isEmpty()) {
-            body = response.getItems().getFirst();
+        if (response.items() != null && !response.items().isEmpty()) {
+            body = response.items().getFirst();
         }
         return ResponseEntity
-                .status(mapStatus(response.getStatus()))
+                .status(mapStatus(response.status()))
                 .headers(toHttpHeaders(response))
                 .body(body);
     }
@@ -71,7 +69,7 @@ public class SpringResponseAdapter {
 
     private static HttpHeaders toHttpHeaders(DataResponse<?> response) {
         HttpHeaders headers = new HttpHeaders();
-        response.getHeaders().forEach(headers::add);
+        response.headers().forEach(headers::add);
         return headers;
     }
 }

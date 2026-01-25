@@ -1,8 +1,8 @@
 package su.erik.tabledataloader.importer.factory;
 
-import su.erik.tabledataloader.importer.FileImporter;
-import su.erik.tabledataloader.importer.ImportMapper;
 import com.puls.centralpricing.common.exception.StandardFault;
+import su.erik.tabledataloader.importer.ImportMapper;
+import su.erik.tabledataloader.importer.loader.FileLoader;
 
 import java.lang.reflect.Constructor;
 import java.util.Map;
@@ -15,14 +15,14 @@ import java.util.Map;
 public class ReflectionFileImporterFactory implements FileImporterFactory {
 
     @Override
-    public <T> FileImporter createImporter(
-            Class<? extends FileImporter> importerClass,
+    public <T> FileLoader createImporter(
+            Class<? extends FileLoader> importerClass,
             Class<T> importDTOClass,
             ImportMapper<T> importMapper,
             Map<String, Object> customFilters) {
         try {
             // Ищем конструктор (Class, ImportMapper, Map)
-            Constructor<? extends FileImporter> constructor = importerClass.getConstructor(Class.class, ImportMapper.class, Map.class);
+            Constructor<? extends FileLoader> constructor = importerClass.getConstructor(Class.class, ImportMapper.class, Map.class);
             return constructor.newInstance(importDTOClass, importMapper, customFilters);
         } catch (NoSuchMethodException e) {
             // Если стандартный конструктор не найден, пробуем пустой (для простых импортеров)

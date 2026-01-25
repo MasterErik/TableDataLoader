@@ -1,3 +1,4 @@
+@file:Suppress("UNCHECKED_CAST")
 package su.erik.tabledataloader.param
 
 import su.erik.tabledataloader.param.Filter.SqlSuffix

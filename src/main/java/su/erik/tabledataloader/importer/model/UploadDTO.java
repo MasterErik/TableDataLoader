@@ -1,7 +1,6 @@
-package su.erik.tabledataloader.importer.dto;
+package su.erik.tabledataloader.importer.model;
 
 import java.time.LocalDate;
-import java.util.Objects;
 
 public class UploadDTO {
     private Long id;
@@ -19,7 +18,6 @@ public class UploadDTO {
         this.entity = entity;
     }
 
-    // Геттеры и сеттеры (можно заменить на Lombok или оставить как есть)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -27,6 +25,4 @@ public class UploadDTO {
     public LocalDate getDate() { return date; }
     public Long getSize() { return size; }
     public String getEntity() { return entity; }
-
-    // equals/hashCode/toString опущены для краткости, но они нужны
 }

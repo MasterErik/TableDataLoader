@@ -15,7 +15,7 @@ class ColumnSearch(
 
     constructor(name: String) : this(
         name,
-        Constant.KEYWORD_SEARCH_TYPE.values().toList(),
+        Constant.KEYWORD_SEARCH_TYPE.entries,
         Constant.LIKE
     )
 

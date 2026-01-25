@@ -1,0 +1,3 @@
+su.erik.tabledataloader.spi.CsvLoaderDescriptor
+su.erik.tabledataloader.spi.ZipLoaderDescriptor
+su.erik.tabledataloader.spi.CsvExporterDescriptor

@@ -12,8 +12,8 @@ public class ResponseConverter {
 
     public static <T> ResponseEntity<DataResponse<T>> toResponseEntity(DataResponse<T> response) {
         return ResponseEntity
-                .status(mapStatus(response.getStatus()))
-                .headers(h -> response.getHeaders().forEach(h::add))
+                .status(mapStatus(response.status()))
+                .headers(h -> response.headers().forEach(h::add))
                 .body(response);
     }
 

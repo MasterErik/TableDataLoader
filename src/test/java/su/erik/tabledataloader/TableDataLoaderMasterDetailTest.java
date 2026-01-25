@@ -48,7 +48,7 @@ class TableDataLoaderMasterDetailTest {
                 .build();
 
         // 4. Проверки
-        List<Map<String, Object>> resultItems = response.getItems();
+        List<Map<String, Object>> resultItems = response.items();
         assertEquals(2, resultItems.size());
 
         // Parent A
@@ -122,7 +122,7 @@ class TableDataLoaderMasterDetailTest {
                 .replaceParentByChild(List.of("tempField", Constant.MASTER_ID)) // Удалить эти поля из детей
                 .build();
 
-        Map<String, Object> parent = response.getItems().getFirst();
+        Map<String, Object> parent = response.items().getFirst();
         List<Map<String, Object>> expanded = (List<Map<String, Object>>) parent.get(Constant.EXPANDED_KEY);
 
         assertEquals(2, expanded.size());
@@ -144,6 +144,6 @@ class TableDataLoaderMasterDetailTest {
                 .build();
 
         // Ошибки нет, просто вернулся список строк
-        assertEquals("String Data", response.getItems().getFirst());
+        assertEquals("String Data", response.items().getFirst());
     }
 }

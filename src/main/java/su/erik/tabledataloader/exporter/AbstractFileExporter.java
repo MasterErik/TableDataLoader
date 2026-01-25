@@ -1,23 +1,23 @@
 package su.erik.tabledataloader.exporter;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
- * Базовый класс для экспортеров данных.
- * Инкапсулирует логику работы с источниками данных и рефлексию DTO.
+ * Базовый класс для экспортеров.
+ * Ответственность: Интроспекция объектов (извлечение списка заголовков и значений полей).
  */
 public abstract class AbstractFileExporter<T> implements FileExporter {
 
     protected final Iterable<T> data;
     protected final Consumer<T> forEachConsumer;
-    protected final List<Object> headerOrder = new ArrayList<>();
-    protected final Map<Object, Method> getterMethods = new HashMap<>();
+
+    // Кеш методов для рефлексии, чтобы не искать их для каждой строки
+    private final Map<String, Method> methodCache = new HashMap<>();
+    private final Map<String, Field> fieldCache = new HashMap<>();
 
     public AbstractFileExporter(Iterable<T> data) {
         this(data, null);
@@ -28,57 +28,95 @@ public abstract class AbstractFileExporter<T> implements FileExporter {
         this.forEachConsumer = forEachConsumer;
     }
 
-    protected void retrieveHeadersFromData(T entity) {
-        if (headerOrder.isEmpty()) {
-            getHeadersFromEntity(entity).forEach(headerOrder::add);
+    /**
+     * Вызывает consumer для постобработки элемента (если задан).
+     */
+    protected void processItem(T item) {
+        if (forEachConsumer != null) {
+            forEachConsumer.accept(item);
         }
     }
 
-    protected void initGetterMethods(T item) {
-        if (getterMethods.isEmpty() && !(item instanceof Map)) {
-            Class<?> clazz = item.getClass();
-            for (Method method : clazz.getMethods()) {
-                if (method.getName().startsWith("get") && method.getParameterCount() == 0 && !method.getName().equals("getClass")) {
-                    String fieldName = method.getName().substring(3);
-                    // Учитываем camelCase: GetName -> Name или name? В старом коде было substring(3).
-                    getterMethods.put(fieldName, method);
-                }
-            }
-        }
-    }
-
-    protected Object getFieldValue(T object, Object fieldName) {
-        if (object instanceof Map) {
-            return ((Map<?, ?>) object).get(fieldName);
+    /**
+     * Определяет список заголовков на основе первого элемента данных или класса.
+     */
+    protected List<String> resolveHeaders(T sampleItem) {
+        if (sampleItem instanceof Map) {
+            return new ArrayList<>(((Map<?, ?>) sampleItem).keySet()).stream()
+                    .map(Object::toString)
+                    .collect(Collectors.toList());
         } else {
-            Method method = getterMethods.get(fieldName);
-            if (method == null) {
-                // Пытаемся найти по lowercase если не нашли (для гибкости)
-                method = getterMethods.get(fieldName.toString().toLowerCase());
-            }
+            // Для POJO берем поля класса
+            // Можно улучшить: добавить поддержку аннотаций @CsvBindByName для порядка и имен
+            return Arrays.stream(sampleItem.getClass().getDeclaredFields())
+                    .map(Field::getName)
+                    .filter(name -> !name.startsWith("this$")) // Исключаем синтетические поля
+                    .collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * Извлекает значения полей для списка заголовков.
+     */
+    protected List<Object> extractRowValues(T item, List<String> headers) {
+        List<Object> values = new ArrayList<>(headers.size());
+        for (String header : headers) {
+            values.add(getValue(item, header));
+        }
+        return values;
+    }
+
+    private Object getValue(T item, String fieldName) {
+        if (item == null) return "";
+        if (item instanceof Map) {
+            return ((Map<?, ?>) item).get(fieldName);
+        }
+
+        try {
+            // 1. Пытаемся через геттер (cached)
+            Method method = getCachedMethod(item.getClass(), fieldName);
             if (method != null) {
-                try {
-                    return method.invoke(object);
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException("Error invoking getter for field: " + fieldName, e);
-                }
+                return method.invoke(item);
             }
+
+            // 2. Пытаемся через поле (cached)
+            Field field = getCachedField(item.getClass(), fieldName);
+            if (field != null) {
+                return field.get(item);
+            }
+        } catch (Exception e) {
+            // Логируем или игнорируем ошибку доступа
+        }
+        return "";
+    }
+
+    private Method getCachedMethod(Class<?> clazz, String fieldName) {
+        String key = clazz.getName() + "." + fieldName;
+        if (methodCache.containsKey(key)) return methodCache.get(key);
+
+        String getterName = "get" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+        try {
+            Method method = clazz.getMethod(getterName);
+            methodCache.put(key, method);
+            return method;
+        } catch (NoSuchMethodException e) {
+            methodCache.put(key, null);
             return null;
         }
     }
 
-    protected Stream<?> getHeadersFromEntity(T entity) {
-        if (entity instanceof Map) {
-            return ((Map<?, ?>) entity).keySet().stream();
-        } else {
-            return Arrays.stream(entity.getClass().getDeclaredFields())
-                    .map(Field::getName);
-        }
-    }
+    private Field getCachedField(Class<?> clazz, String fieldName) {
+        String key = clazz.getName() + "." + fieldName;
+        if (fieldCache.containsKey(key)) return fieldCache.get(key);
 
-    protected void processItem(T item) {
-        if (forEachConsumer != null) {
-            forEachConsumer.accept(item);
+        try {
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            fieldCache.put(key, field);
+            return field;
+        } catch (NoSuchFieldException e) {
+            fieldCache.put(key, null);
+            return null;
         }
     }
 }

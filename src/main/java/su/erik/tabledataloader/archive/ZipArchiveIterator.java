@@ -6,10 +6,7 @@ import java.io.InputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-/**
- * Высокопроизводительный итератор для ZIP архивов.
- */
-public class ZipArchiveIterator extends AbstractArchiveIterator {
+public class ZipArchiveIterator extends AbstractIterator {
 
     private final ZipInputStream zipStream;
 
@@ -35,14 +32,10 @@ public class ZipArchiveIterator extends AbstractArchiveIterator {
 
     @Override
     protected void moveToNextEntry() throws IOException {
-        currentEntry = zipStream.getNextEntry();
-    }
-
-    @Override
-    protected void prepareForNext() throws IOException {
         if (currentEntry != null) {
             zipStream.closeEntry();
         }
+        currentEntry = zipStream.getNextEntry();
     }
 
     @Override
