@@ -1,7 +1,6 @@
 package su.erik.tabledataloader.config;
 
 import java.util.Map;
-import java.util.function.Function;
 
 public enum StandardParam {
 

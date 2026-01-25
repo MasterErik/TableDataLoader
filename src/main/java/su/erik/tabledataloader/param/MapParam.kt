@@ -4,8 +4,6 @@ import com.puls.centralpricing.common.exception.InvalidInputParameterException
 import su.erik.tabledataloader.config.Constant
 import su.erik.tabledataloader.config.StandardParam
 import su.erik.tabledataloader.param.Filter.SqlSuffix
-import java.util.ArrayList
-import java.util.HashMap
 
 @Suppress("unused", "UnusedReturnValue", "UNCHECKED_CAST")
 open class MapParam {
@@ -109,7 +107,7 @@ open class MapParam {
             }
         }
 
-    val keywordSearchType: String?
+    val keywordSearchType: String
         get() = tableSearch.keywordSearchType
 
     // =================================================================================================================

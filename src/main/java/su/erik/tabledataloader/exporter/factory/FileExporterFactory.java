@@ -1,6 +1,7 @@
 package su.erik.tabledataloader.exporter.factory;
 
-import su.erik.tabledataloader.exporter.FileExporter; // Предполагаемый интерфейс экспортера
+import su.erik.tabledataloader.exporter.FileExporter;
+
 import java.util.function.Consumer;
 
 public interface FileExporterFactory {

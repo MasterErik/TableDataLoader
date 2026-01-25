@@ -1,7 +1,6 @@
 package su.erik.tabledataloader.param
 
 import su.erik.tabledataloader.config.Constant
-import java.util.ArrayList
 
 class TableSearch {
 

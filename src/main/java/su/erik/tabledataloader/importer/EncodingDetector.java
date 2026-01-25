@@ -1,10 +1,10 @@
 package su.erik.tabledataloader.importer;
 
 import com.glaforge.i18n.io.CharsetToolkit;
-import su.erik.tabledataloader.config.Constant;
 import com.puls.centralpricing.common.exception.StandardFault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import su.erik.tabledataloader.config.Constant;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class EncodingDetector {
 
         CharsetToolkit toolkit = new CharsetToolkit(actualBytes);
         toolkit.setDefaultCharset(Constant.WINDOWS_1251_CHARSET); // Используем CP1251 как дефолт для России
-        
+
         // guessEncoding() может быть дорогим, но мы ограничили его 4KB
         Charset charset = toolkit.guessEncoding();
         log.debug("Detected encoding: {}", charset);
