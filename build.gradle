@@ -45,7 +45,7 @@ test {
     useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
-        exceptionFormat "full"
+        exceptionFormat = "full"
     }
 }
 
@@ -58,7 +58,8 @@ java {
 
 publishing {
     publications {
-        library(MavenPublication) {
+        register('library', MavenPublication) {
+            artifactId = 'tabledataloader'
             from components.java
         }
     }
